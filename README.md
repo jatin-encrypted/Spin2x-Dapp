@@ -148,5 +148,5 @@ MIT © 2026
 ---
 
 <p align="center">
-  Built with ❤️ for Web3 hackathons
+  Built with ❤️
 </p>
