@@ -134,10 +134,10 @@ The contract holds funds to pay winners. Send native tokens directly to the cont
 | ------------------ | ---------------------------------- |
 | **Mobile App**     | React Native + Expo                |
 | **Wallet**         | MetaMask Mobile + WalletConnect v2 |
-| **Blockchain**     | ethers.js                          |
+| **Web3 Library**   | ethers.js                          |
 | **Smart Contract** | Solidity 0.8.20                    |
 | **Tooling**        | Hardhat                            |
-| **Network**        | Monad Testnet (primary)            |
+| **Network**        | Monad Testnet (EVM-compatible)     |
 
 ---
 
