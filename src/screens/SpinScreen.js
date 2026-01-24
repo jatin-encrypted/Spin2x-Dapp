@@ -5,7 +5,6 @@ import {
     StyleSheet,
     TouchableOpacity,
     TextInput,
-    SafeAreaView,
     StatusBar,
     Alert,
     ActivityIndicator,
@@ -13,8 +12,10 @@ import {
     TouchableWithoutFeedback,
     AppState,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import SpinWheel from '../components/SpinWheel';
 import { useSpinWheel } from '../hooks/useSpinWheel';
+import { CONTRACT_ADDRESS } from '../config/contract';
 
 /**
  * SpinScreen
@@ -205,13 +206,94 @@ const SpinScreen = ({ wallet }) => {
             console.log(`Attempt ${attempt + 1}: Balance from chain: ${currentBalance} (was ${initialBalance}), changed: ${balanceChanged}`);
 
             if (balanceChanged) {
-                console.log('Balance decreased but no SpinResult event — MetaMask deep link limitation');
+                console.log('Balance decreased - searching harder for SpinResult event...');
                 console.log(`Balance was ${initialBalance}, now ${currentBalance}`);
 
                 // Refresh the wallet state
                 await wallet.fetchBalance();
 
-                // Generate a random demo result since we can't get the real one
+                // Try checking for result one more time with a fresh query
+                // Sometimes there's a slight delay between balance update and event indexing
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                const retryResult = await checkForRecentResult({ force: true });
+
+                if (retryResult) {
+                    console.log('Found SpinResult on retry!');
+                    if (pollTokenRef.current === myToken) {
+                        setIsAwaitingConfirmation(false);
+                        setIsCheckingResult(false);
+                    }
+                    return;
+                }
+
+                // Still no event found - try to find the transaction in recent blocks
+                console.log('Searching for transaction in recent blocks...');
+                try {
+                    const { ethers } = require('ethers');
+                    const searchProvider = new ethers.providers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
+                    const currentBlockNum = await searchProvider.getBlockNumber();
+
+                    // Search last 10 blocks for our transaction
+                    for (let i = 0; i < 10; i++) {
+                        const blockNum = currentBlockNum - i;
+                        const block = await searchProvider.getBlockWithTransactions(blockNum);
+
+                        if (block && block.transactions) {
+                            const ourTx = block.transactions.find(tx =>
+                                tx.from?.toLowerCase() === wallet.account?.toLowerCase() &&
+                                tx.to?.toLowerCase() === CONTRACT_ADDRESS.toLowerCase()
+                            );
+
+                            if (ourTx) {
+                                console.log('Found our transaction:', ourTx.hash);
+                                const receipt = await searchProvider.getTransactionReceipt(ourTx.hash);
+
+                                if (receipt && receipt.logs && receipt.logs.length > 0) {
+                                    // Parse the SpinResult event
+                                    const iface = new ethers.utils.Interface([
+                                        'event SpinResult(address indexed player, uint256 stake, uint8 segment, uint256 payout, uint256 timestamp)'
+                                    ]);
+
+                                    for (const log of receipt.logs) {
+                                        try {
+                                            const parsed = iface.parseLog(log);
+                                            if (parsed.name === 'SpinResult') {
+                                                const realSegment = parsed.args.segment;
+                                                const realPayout = ethers.utils.formatEther(parsed.args.payout);
+                                                const realStake = ethers.utils.formatEther(parsed.args.stake);
+
+                                                console.log(`Found real result: segment=${realSegment}, payout=${realPayout}`);
+
+                                                setResultSegment(realSegment);
+                                                setIsAnimating(true);
+                                                setLastResult({
+                                                    success: true,
+                                                    segment: realSegment,
+                                                    payout: realPayout,
+                                                    stake: realStake,
+                                                    txHash: ourTx.hash,
+                                                });
+
+                                                if (pollTokenRef.current === myToken) {
+                                                    setIsAwaitingConfirmation(false);
+                                                    setIsCheckingResult(false);
+                                                }
+                                                return;
+                                            }
+                                        } catch (e) {
+                                            // Not our event, continue
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (searchErr) {
+                    console.error('Error searching for transaction:', searchErr);
+                }
+
+                // Last resort: demo fallback (should rarely happen now)
+                console.log('Could not find transaction - using demo fallback');
                 const demoSegment = Math.floor(Math.random() * 6);
                 const multipliers = [0, 0, 1.0, 1.2, 1.5, 2.0];
                 const stakeVal = parseFloat(stakeAmount) || 0.001;
