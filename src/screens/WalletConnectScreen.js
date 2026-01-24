@@ -6,8 +6,8 @@ import {
     TouchableOpacity,
     Image,
     StatusBar,
-    SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import WalletAddressModal from '../components/WalletAddressModal';
 
 /**
