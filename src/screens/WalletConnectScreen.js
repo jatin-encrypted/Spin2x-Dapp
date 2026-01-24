@@ -24,8 +24,12 @@ const WalletConnectScreen = ({ onConnect, isConnecting, showAddressModal, onAddr
             <View style={styles.content}>
                 {/* Logo/Title Area */}
                 <View style={styles.header}>
-                    <Text style={styles.logo}>🎰</Text>
-                    <Text style={styles.title}>Spin Wheel</Text>
+                    <Image
+                        source={require('../../assets/icon.png')}
+                        style={styles.logo}
+                        resizeMode="contain"
+                    />
+                    <Text style={styles.title}>Spin2x</Text>
                     <Text style={styles.subtitle}>Web3 Game on Monad</Text>
                 </View>
 
@@ -108,7 +112,8 @@ const styles = StyleSheet.create({
         marginTop: 40,
     },
     logo: {
-        fontSize: 80,
+        width: 100,
+        height: 100,
         marginBottom: 16,
     },
     title: {
