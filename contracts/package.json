@@ -1,0 +1,22 @@
+{
+    "name": "spinwheel-contracts",
+    "version": "1.0.0",
+    "description": "SpinWheel Smart Contracts",
+    "scripts": {
+        "deploy:monad": "hardhat run scripts/deploy.js --network monadTestnet",
+        "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+        "deploy:base": "hardhat run scripts/deploy.js --network baseSepolia",
+        "deploy:amoy": "hardhat run scripts/deploy.js --network amoy",
+        "compile": "hardhat compile",
+        "test": "hardhat test",
+        "verify": "hardhat verify"
+    },
+    "devDependencies": {
+        "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+        "dotenv": "^16.6.1",
+        "hardhat": "^2.19.4"
+    },
+    "dependencies": {
+        "ethers": "^5.7.2"
+    }
+}
