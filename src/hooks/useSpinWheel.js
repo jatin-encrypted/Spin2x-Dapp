@@ -139,41 +139,80 @@ export const useSpinWheel = (wallet) => {
      */
     const parseSpinResult = (receipt) => {
         try {
+            console.log('=== Parsing SpinResult ===');
+            console.log('Receipt:', JSON.stringify(receipt, null, 2));
+
             // Check if receipt has logs
             if (!receipt.logs || receipt.logs.length === 0) {
+                console.error('No logs found in receipt');
                 throw new Error('No logs in receipt');
             }
+
+            console.log('Number of logs:', receipt.logs.length);
 
             // Create contract interface for parsing logs
             const iface = new ethers.utils.Interface(CONTRACT_ABI);
 
             // Find SpinResult event in logs
-            const spinResultLog = receipt.logs.find(log => {
+            let spinResultLog = null;
+
+            for (const log of receipt.logs) {
+                console.log('Checking log:', log.address, log.topics?.[0]);
                 try {
-                    const parsed = iface.parseLog(log);
-                    return parsed.name === 'SpinResult';
-                } catch {
-                    return false;
+                    // Handle both ethers v5 log formats
+                    const logData = {
+                        topics: log.topics,
+                        data: log.data,
+                        address: log.address
+                    };
+                    const parsed = iface.parseLog(logData);
+                    console.log('Parsed log name:', parsed.name);
+                    if (parsed.name === 'SpinResult') {
+                        spinResultLog = log;
+                        break;
+                    }
+                } catch (parseErr) {
+                    // Not our event, continue
+                    console.log('Could not parse log:', parseErr.message);
                 }
-            });
+            }
 
             if (!spinResultLog) {
+                console.error('SpinResult event not found in any log');
                 throw new Error('SpinResult event not found in transaction');
             }
 
             // Parse the event
-            const parsedLog = iface.parseLog(spinResultLog);
-
-            return {
-                player: parsedLog.args.player,
-                stake: ethers.utils.formatEther(parsedLog.args.stake),
-                segment: parsedLog.args.segment.toNumber(),
-                payout: ethers.utils.formatEther(parsedLog.args.payout),
-                timestamp: parsedLog.args.timestamp.toNumber(),
+            const logData = {
+                topics: spinResultLog.topics,
+                data: spinResultLog.data,
+                address: spinResultLog.address
             };
+            const parsedLog = iface.parseLog(logData);
+
+            console.log('Parsed SpinResult:', parsedLog.args);
+
+            // Handle different arg formats (named vs positional)
+            const stake = parsedLog.args.stake || parsedLog.args[1];
+            const segment = parsedLog.args.segment ?? parsedLog.args[2];
+            const payout = parsedLog.args.payout || parsedLog.args[3];
+            const timestamp = parsedLog.args.timestamp || parsedLog.args[4];
+            const player = parsedLog.args.player || parsedLog.args[0];
+
+            const result = {
+                player: player,
+                stake: ethers.utils.formatEther(stake),
+                segment: typeof segment === 'number' ? segment : segment.toNumber(),
+                payout: ethers.utils.formatEther(payout),
+                timestamp: typeof timestamp === 'number' ? timestamp : timestamp.toNumber(),
+            };
+
+            console.log('Final parsed result:', result);
+            return result;
         } catch (err) {
             console.error('Event parsing error:', err);
-            throw new Error('Failed to parse spin result');
+            console.error('Error stack:', err.stack);
+            throw new Error('Failed to parse spin result: ' + err.message);
         }
     };
 

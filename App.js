@@ -1,5 +1,6 @@
 import React from 'react';
 import { LogBox } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-get-random-values';
 import WalletConnectScreen from './src/screens/WalletConnectScreen';
 import SpinScreen from './src/screens/SpinScreen';
@@ -19,9 +20,11 @@ LogBox.ignoreLogs([
  */
 export default function App() {
     return (
-        <WalletProvider>
-            <AppContent />
-        </WalletProvider>
+        <SafeAreaProvider>
+            <WalletProvider>
+                <AppContent />
+            </WalletProvider>
+        </SafeAreaProvider>
     );
 }
 

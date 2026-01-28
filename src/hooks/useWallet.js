@@ -1,10 +1,14 @@
 import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
 import { ethers } from 'ethers';
-import { Linking, Alert } from 'react-native';
+import { Linking, Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CONTRACT_ABI } from '../config/contract';
 
 const WalletContext = createContext(null);
+
+// Check if we're running on web with MetaMask
+const isWeb = Platform.OS === 'web';
+const hasMetaMask = isWeb && typeof window !== 'undefined' && window.ethereum;
 
 export const WalletProvider = ({ children }) => {
     const [account, setAccount] = useState(null);
@@ -12,24 +16,76 @@ export const WalletProvider = ({ children }) => {
     const [isConnecting, setIsConnecting] = useState(false);
     const [error, setError] = useState(null);
     const [provider, setProvider] = useState(null);
+    const [web3Provider, setWeb3Provider] = useState(null);
     const [showAddressModal, setShowAddressModal] = useState(false);
 
     useEffect(() => {
-        console.log('Initializing provider with RPC:', 'https://testnet-rpc.monad.xyz');
-        const rpcProvider = new ethers.providers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
+        console.log('Platform:', Platform.OS, '| Has MetaMask:', hasMetaMask);
 
-        // Test the provider connection
+        // Initialize read-only RPC provider
+        const rpcProvider = new ethers.providers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
         rpcProvider.getBlockNumber()
             .then(blockNumber => {
-                console.log('Provider connected successfully. Current block:', blockNumber);
+                console.log('RPC Provider connected. Current block:', blockNumber);
             })
             .catch(err => {
-                console.error('Provider connection failed:', err);
+                console.error('RPC Provider connection failed:', err);
             });
 
         setProvider(rpcProvider);
-        restoreWallet();
+
+        // On web with MetaMask, try to restore connection and listen for changes
+        if (hasMetaMask) {
+            checkExistingConnection();
+
+            // Listen for account changes
+            window.ethereum.on('accountsChanged', (accounts) => {
+                console.log('MetaMask accounts changed:', accounts);
+                if (accounts.length > 0) {
+                    setAccount(accounts[0]);
+                    // Update web3Provider with new account
+                    const web3Prov = new ethers.providers.Web3Provider(window.ethereum);
+                    setWeb3Provider(web3Prov);
+                } else {
+                    setAccount(null);
+                    setWeb3Provider(null);
+                    setBalance('0');
+                }
+            });
+
+            // Listen for chain changes
+            window.ethereum.on('chainChanged', (chainId) => {
+                console.log('MetaMask chain changed:', chainId);
+                // Reload the page on chain change as recommended by MetaMask
+                window.location.reload();
+            });
+        } else {
+            restoreWallet();
+        }
+
+        // Cleanup listeners on unmount
+        return () => {
+            if (hasMetaMask) {
+                window.ethereum.removeAllListeners('accountsChanged');
+                window.ethereum.removeAllListeners('chainChanged');
+            }
+        };
     }, []);
+
+    // Check if MetaMask is already connected (web only)
+    const checkExistingConnection = async () => {
+        try {
+            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+            if (accounts.length > 0) {
+                const web3Prov = new ethers.providers.Web3Provider(window.ethereum);
+                setWeb3Provider(web3Prov);
+                setAccount(accounts[0]);
+                console.log('Restored MetaMask connection:', accounts[0]);
+            }
+        } catch (err) {
+            console.error('Failed to check existing connection:', err);
+        }
+    };
 
     const restoreWallet = async () => {
         try {
@@ -47,7 +103,52 @@ export const WalletProvider = ({ children }) => {
             setIsConnecting(true);
             setError(null);
 
-            // Show the address input modal
+            // Web with MetaMask - connect directly
+            if (hasMetaMask) {
+                console.log('Connecting via MetaMask browser extension...');
+
+                // Request account access
+                const accounts = await window.ethereum.request({
+                    method: 'eth_requestAccounts'
+                });
+
+                if (accounts.length > 0) {
+                    // Switch to Monad testnet
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0x279F' }], // 10143 in hex
+                        });
+                    } catch (switchError) {
+                        // Chain not added, add it
+                        if (switchError.code === 4902) {
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: '0x279F',
+                                    chainName: 'Monad Testnet',
+                                    nativeCurrency: {
+                                        name: 'MON',
+                                        symbol: 'MON',
+                                        decimals: 18
+                                    },
+                                    rpcUrls: ['https://testnet-rpc.monad.xyz'],
+                                    blockExplorerUrls: ['https://testnet.monadexplorer.com']
+                                }]
+                            });
+                        }
+                    }
+
+                    const web3Prov = new ethers.providers.Web3Provider(window.ethereum);
+                    setWeb3Provider(web3Prov);
+                    setAccount(accounts[0]);
+                    setIsConnecting(false);
+                    console.log('MetaMask connected:', accounts[0]);
+                    return;
+                }
+            }
+
+            // Mobile or no MetaMask - show address input modal
             setShowAddressModal(true);
         } catch (err) {
             console.error('Connection error:', err);
@@ -113,14 +214,37 @@ export const WalletProvider = ({ children }) => {
     }, [account, provider]);
 
     const sendTransaction = useCallback(async (transaction) => {
-        if (!account || !provider) {
+        if (!account) {
             throw new Error('Wallet not connected');
         }
 
         try {
-            console.log('=== Opening MetaMask to Sign Transaction ===');
+            console.log('=== Sending Transaction ===');
             console.log('Transaction details:', transaction);
 
+            // Web with MetaMask - use Web3Provider
+            if (hasMetaMask && web3Provider) {
+                console.log('Using MetaMask browser extension for signing...');
+
+                const signer = web3Provider.getSigner();
+
+                const tx = await signer.sendTransaction({
+                    to: transaction.to,
+                    value: ethers.BigNumber.from(transaction.value),
+                    data: transaction.data,
+                });
+
+                console.log('Transaction sent:', tx.hash);
+                console.log('Waiting for confirmation...');
+
+                const receipt = await tx.wait();
+                console.log('Transaction confirmed:', receipt);
+
+                return receipt;
+            }
+
+            // Mobile - use deep linking
+            console.log('Using MetaMask deep link for mobile...');
             const chainId = 10143; // Monad testnet
             const recipient = transaction.to;
             const valueWei = transaction.value;
@@ -243,7 +367,7 @@ export const WalletProvider = ({ children }) => {
             console.error('Transaction error:', err);
             throw err;
         }
-    }, [account, provider, balance, fetchBalance]); const getTransactionReceipt = useCallback(async (txHash) => {
+    }, [account, web3Provider, balance, fetchBalance]); const getTransactionReceipt = useCallback(async (txHash) => {
         if (!provider) {
             throw new Error('Provider not available');
         }

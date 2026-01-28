@@ -11,6 +11,7 @@ import {
     Keyboard,
     TouchableWithoutFeedback,
     AppState,
+    Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import SpinWheel from '../components/SpinWheel';
@@ -466,11 +467,15 @@ const SpinScreen = ({ wallet }) => {
 
     const isButtonDisabled = isSpinning || isAnimating || !stakeAmount;
 
+    // Only use TouchableWithoutFeedback on mobile to dismiss keyboard
+    const Wrapper = Platform.OS === 'web' ? View : TouchableWithoutFeedback;
+    const wrapperProps = Platform.OS === 'web' ? { style: { flex: 1 } } : { onPress: Keyboard.dismiss };
+
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" />
 
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <Wrapper {...wrapperProps}>
                 <View style={styles.content}>
                     {/* Header - Wallet Info */}
                     <View style={styles.header}>
@@ -554,11 +559,13 @@ const SpinScreen = ({ wallet }) => {
                                     placeholder="0.0"
                                     placeholderTextColor="#64748B"
                                     value={stakeAmount}
-                                    onChangeText={setStakeAmount}
+                                    onChangeText={(text) => setStakeAmount(text)}
                                     keyboardType="decimal-pad"
                                     editable={!isSpinning && !isAnimating}
                                     returnKeyType="done"
                                     onSubmitEditing={Keyboard.dismiss}
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
                                 />
                                 <Text style={styles.inputSuffix}>MON</Text>
                             </View>
@@ -589,7 +596,7 @@ const SpinScreen = ({ wallet }) => {
                         </View>
                     )}
                 </View>
-            </TouchableWithoutFeedback>
+            </Wrapper>
         </SafeAreaView>
     );
 };
@@ -738,6 +745,9 @@ const styles = StyleSheet.create({
         color: '#ffffff',
         paddingVertical: 16,
         fontWeight: '600',
+        outlineStyle: 'none',
+        borderWidth: 0,
+        backgroundColor: 'transparent',
     },
     inputSuffix: {
         fontSize: 18,
