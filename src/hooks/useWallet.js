@@ -139,7 +139,7 @@ export const WalletProvider = ({ children }) => {
                         }
                     }
 
-                    const web3Prov = new ethers.providers.Web3Provider(window.ethereum);
+                    const web3Prov = new Web3Provider(window.ethereum);
                     setWeb3Provider(web3Prov);
                     setAccount(accounts[0]);
                     setIsConnecting(false);
