@@ -37,10 +37,8 @@ export const WalletProvider = ({ children }) => {
 
         setProvider(rpcProvider);
 
-        // On web with MetaMask, try to restore connection and listen for changes
+        // On web with MetaMask
         if (ethereum) {
-            checkExistingConnection();
-
             // Listen for account changes
             ethereum.on('accountsChanged', (accounts) => {
                 console.log('MetaMask accounts changed:', accounts);
@@ -75,23 +73,6 @@ export const WalletProvider = ({ children }) => {
             }
         };
     }, []);
-
-    // Check if MetaMask is already connected (web only)
-    const checkExistingConnection = async () => {
-        try {
-            const ethereum = getMetaMask();
-            if (!ethereum) return;
-            const accounts = await ethereum.request({ method: 'eth_accounts' });
-            if (accounts.length > 0) {
-                const web3Prov = new BrowserProvider(ethereum);
-                setWeb3Provider(web3Prov);
-                setAccount(accounts[0]);
-                console.log('Restored MetaMask connection:', accounts[0]);
-            }
-        } catch (err) {
-            console.error('Failed to check existing connection:', err);
-        }
-    };
 
     const restoreWallet = async () => {
         try {

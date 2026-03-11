@@ -27,14 +27,6 @@
 
 ---
 
-## 🌐 Web App
-
-| Resource           | Link                                                                                   |
-| ------------------ | -------------------------------------------------------------------------------------- |
-| 🔗 **Live Website** | [production-spin2x-0h.tyzo.nodeops.app](https://production-spin2x-0h.tyzo.nodeops.app) |
-
----
-
 ## ✨ Features
 
 | Feature                    | Description                                                           |
