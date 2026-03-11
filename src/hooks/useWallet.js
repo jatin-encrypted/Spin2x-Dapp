@@ -144,6 +144,14 @@ export const WalletProvider = ({ children }) => {
                     setAccount(accounts[0]);
                     setIsConnecting(false);
                     console.log('MetaMask connected:', accounts[0]);
+                    // Debug: show alert to confirm account set
+                    if (typeof window !== 'undefined' && window.alert) {
+                        window.alert('Wallet connected: ' + accounts[0]);
+                    }
+                    return;
+                } else {
+                    setError('No accounts returned from MetaMask. Please approve connection.');
+                    setIsConnecting(false);
                     return;
                 }
             }
@@ -152,7 +160,7 @@ export const WalletProvider = ({ children }) => {
             setShowAddressModal(true);
         } catch (err) {
             console.error('Connection error:', err);
-            setError('Failed to connect wallet');
+            setError('Failed to connect wallet: ' + (err && err.message ? err.message : err));
             setIsConnecting(false);
         }
     }, []);

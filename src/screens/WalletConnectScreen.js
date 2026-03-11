@@ -17,6 +17,18 @@ import WalletAddressModal from '../components/WalletAddressModal';
  * Displays logo, game title, and connect button
  */
 const WalletConnectScreen = ({ onConnect, isConnecting, showAddressModal, onAddressSubmit, onAddressCancel }) => {
+    // Add error display using wallet context if available
+    // Try to get wallet context for error
+    let walletError = null;
+    try {
+        // Dynamically require useWallet to avoid circular import
+        // eslint-disable-next-line global-require
+        const { useWallet } = require('../hooks/useWallet');
+        walletError = useWallet().error;
+    } catch (e) {
+        walletError = null;
+    }
+
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" />
@@ -74,6 +86,13 @@ const WalletConnectScreen = ({ onConnect, isConnecting, showAddressModal, onAddr
                         </View>
                     </View>
                 </View>
+
+                {/* Error Message */}
+                {walletError && (
+                    <View style={{ marginVertical: 12, padding: 10, backgroundColor: '#fee2e2', borderRadius: 8 }}>
+                        <Text style={{ color: '#b91c1c', textAlign: 'center' }}>{walletError}</Text>
+                    </View>
+                )}
 
                 {/* Connect Button */}
                 <TouchableOpacity
