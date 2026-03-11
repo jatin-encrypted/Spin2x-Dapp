@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
-import { ethers, JsonRpcProvider, Web3Provider } from 'ethers';
+import { ethers, JsonRpcProvider, BrowserProvider } from 'ethers';
 import { Linking, Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CONTRACT_ABI } from '../config/contract';
@@ -44,7 +44,7 @@ export const WalletProvider = ({ children }) => {
                 if (accounts.length > 0) {
                     setAccount(accounts[0]);
                     // Update web3Provider with new account
-                    const web3Prov = new Web3Provider(window.ethereum);
+                    const web3Prov = new BrowserProvider(window.ethereum);
                     setWeb3Provider(web3Prov);
                 } else {
                     setAccount(null);
@@ -77,7 +77,7 @@ export const WalletProvider = ({ children }) => {
         try {
             const accounts = await window.ethereum.request({ method: 'eth_accounts' });
             if (accounts.length > 0) {
-                const web3Prov = new Web3Provider(window.ethereum);
+                const web3Prov = new BrowserProvider(window.ethereum);
                 setWeb3Provider(web3Prov);
                 setAccount(accounts[0]);
                 console.log('Restored MetaMask connection:', accounts[0]);
@@ -139,7 +139,7 @@ export const WalletProvider = ({ children }) => {
                         }
                     }
 
-                    const web3Prov = new Web3Provider(window.ethereum);
+                    const web3Prov = new BrowserProvider(window.ethereum);
                     setWeb3Provider(web3Prov);
                     setAccount(accounts[0]);
                     setIsConnecting(false);
@@ -230,15 +230,15 @@ export const WalletProvider = ({ children }) => {
             console.log('=== Sending Transaction ===');
             console.log('Transaction details:', transaction);
 
-            // Web with MetaMask - use Web3Provider
+            // Web with MetaMask - use BrowserProvider
             if (hasMetaMask && web3Provider) {
                 console.log('Using MetaMask browser extension for signing...');
 
-                const signer = web3Provider.getSigner();
+                const signer = await web3Provider.getSigner();
 
                 const tx = await signer.sendTransaction({
                     to: transaction.to,
-                    value: ethers.BigNumber.from(transaction.value),
+                    value: ethers.BigInt(transaction.value),
                     data: transaction.data,
                 });
 
