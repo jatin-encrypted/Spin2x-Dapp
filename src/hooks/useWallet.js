@@ -168,7 +168,7 @@ export const WalletProvider = ({ children }) => {
     const handleAddressSubmit = async (address) => {
         setShowAddressModal(false);
 
-        if (address && ethers.utils.isAddress(address)) {
+        if (address && ethers.isAddress(address)) {
             setAccount(address);
             await AsyncStorage.setItem('wallet_address', address);
             setIsConnecting(false);
@@ -210,7 +210,7 @@ export const WalletProvider = ({ children }) => {
             const balanceWei = await provider.getBalance(account);
             console.log('Balance in Wei:', balanceWei.toString());
 
-            const balanceFormatted = ethers.utils.formatEther(balanceWei);
+            const balanceFormatted = ethers.formatEther(balanceWei);
             console.log('Balance formatted:', balanceFormatted, 'MON');
 
             setBalance(balanceFormatted);
@@ -238,7 +238,7 @@ export const WalletProvider = ({ children }) => {
 
                 const tx = await signer.sendTransaction({
                     to: transaction.to,
-                    value: ethers.BigInt(transaction.value),
+                    value: BigInt(transaction.value),
                     data: transaction.data,
                 });
 
@@ -258,7 +258,7 @@ export const WalletProvider = ({ children }) => {
             const valueWei = transaction.value;
 
             // Use ABI to generate calldata for spin() to avoid selector mismatches.
-            const iface = new ethers.utils.Interface(CONTRACT_ABI);
+            const iface = new ethers.Interface(CONTRACT_ABI);
             const data = transaction.data || iface.encodeFunctionData('spin');
 
             console.log('Encoded spin() calldata:', data);
@@ -337,13 +337,13 @@ export const WalletProvider = ({ children }) => {
 
                 const segment = Math.floor(Math.random() * 6);
                 const multipliers = [0, 0, 100, 120, 150, 200];
-                const stakeWei = ethers.BigNumber.from(transaction.value);
-                const payoutWei = stakeWei.mul(multipliers[segment]).div(100);
+                const stakeWei = BigInt(transaction.value);
+                const payoutWei = stakeWei * BigInt(multipliers[segment]) / 100n;
 
                 console.log('DEMO MODE - generated mock result:', {
                     segment,
-                    stake: ethers.utils.formatEther(stakeWei),
-                    payout: ethers.utils.formatEther(payoutWei),
+                    stake: ethers.formatEther(stakeWei),
+                    payout: ethers.formatEther(payoutWei),
                     txHash: mockTxHash,
                 });
 
@@ -354,10 +354,10 @@ export const WalletProvider = ({ children }) => {
                     logs: [{
                         address: transaction.to,
                         topics: [
-                            ethers.utils.id('SpinResult(address,uint256,uint8,uint256,uint256)'),
-                            ethers.utils.hexZeroPad(account, 32)
+                            ethers.id('SpinResult(address,uint256,uint8,uint256,uint256)'),
+                            ethers.zeroPadValue(account, 32)
                         ],
-                        data: ethers.utils.defaultAbiCoder.encode(
+                        data: ethers.AbiCoder.defaultAbiCoder().encode(
                             ['uint256', 'uint8', 'uint256', 'uint256'],
                             [stakeWei, segment, payoutWei, Math.floor(Date.now() / 1000)]
                         )
@@ -365,9 +365,9 @@ export const WalletProvider = ({ children }) => {
                 };
 
                 // Update balance locally (DEMO MODE only)
-                const currentBalanceWei = ethers.utils.parseEther(balance);
-                const newBalanceWei = currentBalanceWei.sub(stakeWei).add(payoutWei);
-                setBalance(ethers.utils.formatEther(newBalanceWei));
+                const currentBalanceWei = ethers.parseEther(balance);
+                const newBalanceWei = currentBalanceWei - stakeWei + payoutWei;
+                setBalance(ethers.formatEther(newBalanceWei));
 
                 return mockReceipt;
             }

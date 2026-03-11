@@ -133,7 +133,7 @@ const SpinScreen = ({ wallet }) => {
         // Capture initial balance to detect if tx went through
         // Use the provider directly to get accurate balance (not stale React state)
         const { ethers } = require('ethers');
-        const provider = new ethers.providers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
+        const provider = new ethers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
 
         // Helper for retrying transient RPC failures
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -163,7 +163,7 @@ const SpinScreen = ({ wallet }) => {
                 () => provider.getBalance(wallet.account),
                 'getBalance'
             );
-            return parseFloat(ethers.utils.formatEther(balanceWei));
+            return parseFloat(ethers.formatEther(balanceWei));
         };
 
         let initialBalance;
@@ -231,16 +231,16 @@ const SpinScreen = ({ wallet }) => {
                 console.log('Searching for transaction in recent blocks...');
                 try {
                     const { ethers } = require('ethers');
-                    const searchProvider = new ethers.providers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
+                    const searchProvider = new ethers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
                     const currentBlockNum = await searchProvider.getBlockNumber();
 
                     // Search last 10 blocks for our transaction
                     for (let i = 0; i < 10; i++) {
                         const blockNum = currentBlockNum - i;
-                        const block = await searchProvider.getBlockWithTransactions(blockNum);
+                        const block = await searchProvider.getBlock(blockNum, true);
 
-                        if (block && block.transactions) {
-                            const ourTx = block.transactions.find(tx =>
+                        if (block && block.prefetchedTransactions) {
+                            const ourTx = block.prefetchedTransactions.find(tx =>
                                 tx.from?.toLowerCase() === wallet.account?.toLowerCase() &&
                                 tx.to?.toLowerCase() === CONTRACT_ADDRESS.toLowerCase()
                             );
@@ -251,7 +251,7 @@ const SpinScreen = ({ wallet }) => {
 
                                 if (receipt && receipt.logs && receipt.logs.length > 0) {
                                     // Parse the SpinResult event
-                                    const iface = new ethers.utils.Interface([
+                                    const iface = new ethers.Interface([
                                         'event SpinResult(address indexed player, uint256 stake, uint8 segment, uint256 payout, uint256 timestamp)'
                                     ]);
 
@@ -260,8 +260,8 @@ const SpinScreen = ({ wallet }) => {
                                             const parsed = iface.parseLog(log);
                                             if (parsed.name === 'SpinResult') {
                                                 const realSegment = parsed.args.segment;
-                                                const realPayout = ethers.utils.formatEther(parsed.args.payout);
-                                                const realStake = ethers.utils.formatEther(parsed.args.stake);
+                                                const realPayout = ethers.formatEther(parsed.args.payout);
+                                                const realStake = ethers.formatEther(parsed.args.stake);
 
                                                 console.log(`Found real result: segment=${realSegment}, payout=${realPayout}`);
 

@@ -47,11 +47,11 @@ export const useSpinWheel = (wallet) => {
             setSpinError(null);
 
             // Convert stake to wei
-            const stakeWei = ethers.utils.parseEther(stakeAmount);
+            const stakeWei = ethers.parseEther(stakeAmount);
 
             // Check if user has sufficient balance
-            const userBalanceWei = ethers.utils.parseEther(wallet.balance);
-            if (userBalanceWei.lt(stakeWei)) {
+            const userBalanceWei = ethers.parseEther(wallet.balance);
+            if (userBalanceWei < stakeWei) {
                 throw new Error('Insufficient balance');
             }
 
@@ -60,7 +60,7 @@ export const useSpinWheel = (wallet) => {
             console.log('Stake amount (wei):', stakeWei.toString());
 
             // Prepare transaction
-            const iface = new ethers.utils.Interface(CONTRACT_ABI);
+            const iface = new ethers.Interface(CONTRACT_ABI);
             const calldata = iface.encodeFunctionData('spin');
             console.log('Spin calldata:', calldata);
 
@@ -151,7 +151,7 @@ export const useSpinWheel = (wallet) => {
             console.log('Number of logs:', receipt.logs.length);
 
             // Create contract interface for parsing logs
-            const iface = new ethers.utils.Interface(CONTRACT_ABI);
+            const iface = new ethers.Interface(CONTRACT_ABI);
 
             // Find SpinResult event in logs
             let spinResultLog = null;
@@ -201,10 +201,10 @@ export const useSpinWheel = (wallet) => {
 
             const result = {
                 player: player,
-                stake: ethers.utils.formatEther(stake),
-                segment: typeof segment === 'number' ? segment : segment.toNumber(),
-                payout: ethers.utils.formatEther(payout),
-                timestamp: typeof timestamp === 'number' ? timestamp : timestamp.toNumber(),
+                stake: ethers.formatEther(stake),
+                segment: Number(segment),
+                payout: ethers.formatEther(payout),
+                timestamp: Number(timestamp),
             };
 
             console.log('Final parsed result:', result);
@@ -223,7 +223,7 @@ export const useSpinWheel = (wallet) => {
     const getContractBalance = useCallback(async () => {
         try {
             const balanceWei = await rpcProvider.getBalance(CONTRACT_ADDRESS);
-            const balance = ethers.utils.formatEther(balanceWei);
+            const balance = ethers.formatEther(balanceWei);
 
             return balance;
         } catch (err) {
@@ -296,9 +296,9 @@ export const useSpinWheel = (wallet) => {
                 if (events.length > 0) {
                     latestEvent = events[events.length - 1];
                     console.log('Latest event found:', {
-                        segment: latestEvent.args.segment?.toNumber?.(),
-                        stake: ethers.utils.formatEther(latestEvent.args.stake),
-                        payout: ethers.utils.formatEther(latestEvent.args.payout),
+                        segment: Number(latestEvent.args.segment),
+                        stake: ethers.formatEther(latestEvent.args.stake),
+                        payout: ethers.formatEther(latestEvent.args.payout),
                         txHash: latestEvent.transactionHash,
                     });
                     break;
@@ -317,10 +317,10 @@ export const useSpinWheel = (wallet) => {
 
             return {
                 player: latestEvent.args.player,
-                stake: ethers.utils.formatEther(latestEvent.args.stake),
-                segment: latestEvent.args.segment.toNumber(),
-                payout: ethers.utils.formatEther(latestEvent.args.payout),
-                timestamp: latestEvent.args.timestamp.toNumber(),
+                stake: ethers.formatEther(latestEvent.args.stake),
+                segment: Number(latestEvent.args.segment),
+                payout: ethers.formatEther(latestEvent.args.payout),
+                timestamp: Number(latestEvent.args.timestamp),
                 txHash: latestEvent.transactionHash,
             };
         } catch (err) {
