@@ -6,9 +6,11 @@ import { CONTRACT_ABI } from '../config/contract';
 
 const WalletContext = createContext(null);
 
-// Check if we're running on web with MetaMask
+// Check if we're running on web
 const isWeb = Platform.OS === 'web';
-const hasMetaMask = isWeb && typeof window !== 'undefined' && window.ethereum;
+
+// Check for MetaMask at call time (window.ethereum may be injected late)
+const getMetaMask = () => isWeb && typeof window !== 'undefined' && window.ethereum;
 
 export const WalletProvider = ({ children }) => {
     const [account, setAccount] = useState(null);
@@ -20,7 +22,8 @@ export const WalletProvider = ({ children }) => {
     const [showAddressModal, setShowAddressModal] = useState(false);
 
     useEffect(() => {
-        console.log('Platform:', Platform.OS, '| Has MetaMask:', hasMetaMask);
+        const ethereum = getMetaMask();
+        console.log('Platform:', Platform.OS, '| Has MetaMask:', !!ethereum);
 
         // Initialize read-only RPC provider
         const rpcProvider = new JsonRpcProvider('https://testnet-rpc.monad.xyz');
@@ -35,16 +38,16 @@ export const WalletProvider = ({ children }) => {
         setProvider(rpcProvider);
 
         // On web with MetaMask, try to restore connection and listen for changes
-        if (hasMetaMask) {
+        if (ethereum) {
             checkExistingConnection();
 
             // Listen for account changes
-            window.ethereum.on('accountsChanged', (accounts) => {
+            ethereum.on('accountsChanged', (accounts) => {
                 console.log('MetaMask accounts changed:', accounts);
                 if (accounts.length > 0) {
                     setAccount(accounts[0]);
                     // Update web3Provider with new account
-                    const web3Prov = new BrowserProvider(window.ethereum);
+                    const web3Prov = new BrowserProvider(ethereum);
                     setWeb3Provider(web3Prov);
                 } else {
                     setAccount(null);
@@ -54,7 +57,7 @@ export const WalletProvider = ({ children }) => {
             });
 
             // Listen for chain changes
-            window.ethereum.on('chainChanged', (chainId) => {
+            ethereum.on('chainChanged', (chainId) => {
                 console.log('MetaMask chain changed:', chainId);
                 // Reload the page on chain change as recommended by MetaMask
                 window.location.reload();
@@ -65,9 +68,10 @@ export const WalletProvider = ({ children }) => {
 
         // Cleanup listeners on unmount
         return () => {
-            if (hasMetaMask) {
-                window.ethereum.removeAllListeners('accountsChanged');
-                window.ethereum.removeAllListeners('chainChanged');
+            const eth = getMetaMask();
+            if (eth) {
+                eth.removeAllListeners('accountsChanged');
+                eth.removeAllListeners('chainChanged');
             }
         };
     }, []);
@@ -75,9 +79,11 @@ export const WalletProvider = ({ children }) => {
     // Check if MetaMask is already connected (web only)
     const checkExistingConnection = async () => {
         try {
-            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+            const ethereum = getMetaMask();
+            if (!ethereum) return;
+            const accounts = await ethereum.request({ method: 'eth_accounts' });
             if (accounts.length > 0) {
-                const web3Prov = new BrowserProvider(window.ethereum);
+                const web3Prov = new BrowserProvider(ethereum);
                 setWeb3Provider(web3Prov);
                 setAccount(accounts[0]);
                 console.log('Restored MetaMask connection:', accounts[0]);
@@ -103,26 +109,27 @@ export const WalletProvider = ({ children }) => {
             setIsConnecting(true);
             setError(null);
 
-            // Web with MetaMask - connect directly
-            if (hasMetaMask) {
+            // Web with MetaMask - connect directly via popup
+            const ethereum = getMetaMask();
+            if (ethereum) {
                 console.log('Connecting via MetaMask browser extension...');
 
-                // Request account access
-                const accounts = await window.ethereum.request({
+                // Request account access - triggers MetaMask popup
+                const accounts = await ethereum.request({
                     method: 'eth_requestAccounts'
                 });
 
                 if (accounts.length > 0) {
                     // Switch to Monad testnet
                     try {
-                        await window.ethereum.request({
+                        await ethereum.request({
                             method: 'wallet_switchEthereumChain',
                             params: [{ chainId: '0x279F' }], // 10143 in hex
                         });
                     } catch (switchError) {
                         // Chain not added, add it
                         if (switchError.code === 4902) {
-                            await window.ethereum.request({
+                            await ethereum.request({
                                 method: 'wallet_addEthereumChain',
                                 params: [{
                                     chainId: '0x279F',
@@ -139,15 +146,11 @@ export const WalletProvider = ({ children }) => {
                         }
                     }
 
-                    const web3Prov = new BrowserProvider(window.ethereum);
+                    const web3Prov = new BrowserProvider(ethereum);
                     setWeb3Provider(web3Prov);
                     setAccount(accounts[0]);
                     setIsConnecting(false);
                     console.log('MetaMask connected:', accounts[0]);
-                    // Debug: show alert to confirm account set
-                    if (typeof window !== 'undefined' && window.alert) {
-                        window.alert('Wallet connected: ' + accounts[0]);
-                    }
                     return;
                 } else {
                     setError('No accounts returned from MetaMask. Please approve connection.');
@@ -231,7 +234,7 @@ export const WalletProvider = ({ children }) => {
             console.log('Transaction details:', transaction);
 
             // Web with MetaMask - use BrowserProvider
-            if (hasMetaMask && web3Provider) {
+            if (getMetaMask() && web3Provider) {
                 console.log('Using MetaMask browser extension for signing...');
 
                 const signer = await web3Provider.getSigner();
