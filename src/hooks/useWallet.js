@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
-import { ethers } from 'ethers';
+import { ethers, JsonRpcProvider, Web3Provider } from 'ethers';
 import { Linking, Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CONTRACT_ABI } from '../config/contract';
@@ -23,7 +23,7 @@ export const WalletProvider = ({ children }) => {
         console.log('Platform:', Platform.OS, '| Has MetaMask:', hasMetaMask);
 
         // Initialize read-only RPC provider
-        const rpcProvider = new ethers.providers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
+        const rpcProvider = new JsonRpcProvider('https://testnet-rpc.monad.xyz');
         rpcProvider.getBlockNumber()
             .then(blockNumber => {
                 console.log('RPC Provider connected. Current block:', blockNumber);
@@ -44,7 +44,7 @@ export const WalletProvider = ({ children }) => {
                 if (accounts.length > 0) {
                     setAccount(accounts[0]);
                     // Update web3Provider with new account
-                    const web3Prov = new ethers.providers.Web3Provider(window.ethereum);
+                    const web3Prov = new Web3Provider(window.ethereum);
                     setWeb3Provider(web3Prov);
                 } else {
                     setAccount(null);
@@ -77,7 +77,7 @@ export const WalletProvider = ({ children }) => {
         try {
             const accounts = await window.ethereum.request({ method: 'eth_accounts' });
             if (accounts.length > 0) {
-                const web3Prov = new ethers.providers.Web3Provider(window.ethereum);
+                const web3Prov = new Web3Provider(window.ethereum);
                 setWeb3Provider(web3Prov);
                 setAccount(accounts[0]);
                 console.log('Restored MetaMask connection:', accounts[0]);

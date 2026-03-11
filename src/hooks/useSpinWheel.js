@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
-import { ethers } from 'ethers';
+import { ethers, JsonRpcProvider } from 'ethers';
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../config/contract';
 
 const RPC_URL = 'https://testnet-rpc.monad.xyz';
@@ -19,7 +19,7 @@ export const useSpinWheel = (wallet) => {
     // Reuse one provider to avoid flooding the RPC / socket churn on mobile.
     const fallbackProviderRef = useRef(null);
     if (!fallbackProviderRef.current) {
-        fallbackProviderRef.current = new ethers.providers.JsonRpcProvider(RPC_URL);
+        fallbackProviderRef.current = new JsonRpcProvider(RPC_URL);
     }
 
     const rpcProvider = wallet?.provider || fallbackProviderRef.current;
